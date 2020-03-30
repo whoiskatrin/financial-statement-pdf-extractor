@@ -18,7 +18,6 @@ python-dateutil==2.8.1
 pytz==2019.3
 six==1.14.0
 sortedcontainers==2.1.0
-SQLAlchemy==0.7.10
 xlrd==0.7.1
 xlwt==0.7.2
 
