@@ -8,7 +8,7 @@ Elixir==0.7.1
 et-xmlfile==1.0.1
 ghostscript==0.6
 jdcal==1.4.1
-Jinja2==2.11.1
+Jinja2==2.11.3
 numpy==1.18.1
 opencv-python==4.2.0.32
 openpyxl==3.0.3
