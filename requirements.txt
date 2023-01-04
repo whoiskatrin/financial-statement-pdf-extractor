@@ -10,6 +10,8 @@ ghostscript==0.6
 jdcal==1.4.1
 Jinja2==2.11.3
 numpy==1.18.1
+Jinja2==2.11.1
+numpy==1.22.0
 opencv-python==4.2.0.32
 openpyxl==3.0.3
 pandas==1.0.2
