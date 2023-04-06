@@ -14,9 +14,9 @@ def total_pages(pdf):
         pages = ','.join([str(i) for i in range(pdf_object.getNumPages())])
     return pages
 
-def extract_tables(pdf):
+def extract_tables(pdf, pattern):
     try:
-        cmd = f"pdfgrep -Pn '^(?s:(?=.*Revenue)|(?=.*Income))' {pdf} | awk -F\":\" '$0~\":\"{{print $1}}' | tr '\n' ','"
+        cmd = f"pdfgrep -Pn '{pattern}' {pdf} | awk -F\":\" '$0~\":\"{{print $1}}' | tr '\n' ','"
         pages = subprocess.check_output(cmd, shell=True).decode("utf-8")
         if not pages:
             logging.warning(f"No matching pages found in {pdf}")
@@ -34,20 +34,21 @@ def extract_tables(pdf):
     except Exception as e:
         logging.error(f"Error processing {pdf}: {str(e)}")
 
-def main(input_dir, output_dir, processes):
+def main(input_dir, output_dir, processes, pattern):
     logging.basicConfig(filename='extract_tables.log', level=logging.INFO)
     os.makedirs(output_dir, exist_ok=True)
 
     pdf_files = [os.path.join(input_dir, file) for file in os.listdir(input_dir) if file.lower().endswith('.pdf')]
 
     with Pool(processes=processes) as pool:
-        pool.map(extract_tables, pdf_files)
+        pool.starmap(extract_tables, [(pdf, pattern) for pdf in pdf_files])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract tables from PDF files containing 'Revenue' or 'Income'")
     parser.add_argument("-i", "--input", required=True, help="Input directory containing PDF files")
     parser.add_argument("-o", "--output", required=True, help="Output directory to save the extracted tables")
     parser.add_argument("-p", "--processes", type=int, default=os.cpu_count(), help="Number of parallel processes")
+    parser.add_argument("-r", "--regex", default='^(?s:(?=.*Revenue)|(?=.*Income))', help="Regex pattern to search in PDF files")
     args = parser.parse_args()
 
-    main(args.input, args.output, args.processes)
+    main(args.input, args.output, args.processes, args.regex)
