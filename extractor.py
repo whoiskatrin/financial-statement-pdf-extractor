@@ -1,33 +1,53 @@
 import os
+import argparse
 import subprocess
+import logging
+from multiprocessing import Pool
 
 import camelot
 from PyPDF2 import PdfFileReader
 from camelot.core import TableList
 
-
 def total_pages(pdf):
-    pdf_object = PdfFileReader(open(pdf, 'rb'))
-    pages = ','.join([str(i) for i in list(range(pdf_object.getNumPages()))])
+    with open(pdf, 'rb') as file:
+        pdf_object = PdfFileReader(file)
+        pages = ','.join([str(i) for i in range(pdf_object.getNumPages())])
     return pages
 
+def extract_tables(pdf):
+    try:
+        cmd = f"pdfgrep -Pn '^(?s:(?=.*Revenue)|(?=.*Income))' {pdf} | awk -F\":\" '$0~\":\"{{print $1}}' | tr '\n' ','"
+        pages = subprocess.check_output(cmd, shell=True).decode("utf-8")
+        if not pages:
+            logging.warning(f"No matching pages found in {pdf}")
+            return
 
-def main():
-    for pdf in os.listdir():
-        file_name, file_extension = os.path.splitext(pdf)
-        if file_extension == '.pdf':
-            cmd = "pdfgrep -Pn '^(?s:(?=.*Revenue)|(?=.*Income))' " + pdf + " | awk -F\":\" '$0~\":\"{print $1}' | tr '\n' ','"
-            pages = subprocess.check_output(cmd, shell=True).decode("utf-8")
-            print(pdf)
-            tables = camelot.read_pdf(pdf, flavor='stream', pages=pages, edge_tol=100)
-            filtered = []
-            for index, table in enumerate(tables):
-                whitespace = tables[index].parsing_report.get('whitespace')
-                if whitespace <= 25:
-                    filtered.append(tables[index])
-            filtered_tables = TableList(filtered)
-            filtered_tables.export('test.xlsx', f='excel', compress=True)
+        tables = camelot.read_pdf(pdf, flavor='stream', pages=pages, edge_tol=100)
+        filtered = []
+        for index, table in enumerate(tables):
+            whitespace = tables[index].parsing_report.get('whitespace')
+            if whitespace <= 25:
+                filtered.append(tables[index])
+        filtered_tables = TableList(filtered)
+        filtered_tables.export(f"{os.path.splitext(pdf)[0]}.xlsx", f='excel', compress=True)
+        logging.info(f"Processed {pdf}")
+    except Exception as e:
+        logging.error(f"Error processing {pdf}: {str(e)}")
 
+def main(input_dir, output_dir, processes):
+    logging.basicConfig(filename='extract_tables.log', level=logging.INFO)
+    os.makedirs(output_dir, exist_ok=True)
+
+    pdf_files = [os.path.join(input_dir, file) for file in os.listdir(input_dir) if file.lower().endswith('.pdf')]
+
+    with Pool(processes=processes) as pool:
+        pool.map(extract_tables, pdf_files)
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Extract tables from PDF files containing 'Revenue' or 'Income'")
+    parser.add_argument("-i", "--input", required=True, help="Input directory containing PDF files")
+    parser.add_argument("-o", "--output", required=True, help="Output directory to save the extracted tables")
+    parser.add_argument("-p", "--processes", type=int, default=os.cpu_count(), help="Number of parallel processes")
+    args = parser.parse_args()
+
+    main(args.input, args.output, args.processes)
