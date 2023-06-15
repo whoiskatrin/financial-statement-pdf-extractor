@@ -1,3 +1,3 @@
 camelot-py[cv]==0.10.1
 PyPDF2==1.27.5
-pdfgrep==2.1.2
+
